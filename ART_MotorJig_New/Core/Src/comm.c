@@ -2,7 +2,8 @@
 #include "common.h"
 #include "comm.h"
 
-COMM_RING_BUF CommBuf;
+COMM_RING_BUF RingBuf_Modbus;
+COMM_RING_BUF RingBuf_EziStep;
 
 void CommInit(COMM_RING_BUF *pbuf)
 {

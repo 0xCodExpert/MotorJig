@@ -27,6 +27,7 @@
 #include "common.h"
 #include "comm.h"
 #include "modbus.h"
+#include "EziStep.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,11 +59,22 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint8_t Rx4Data;
+uint8_t Rx2Data;
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	CommPutRxChar(&CommBuf, Rx4Data);
-	HAL_UART_Receive_IT(&huart4, &Rx4Data, sizeof(Rx4Data));
+	if(huart->Instance == USART2)
+	{
+		CommPutRxChar(&RingBuf_Modbus, Rx2Data);
+		HAL_UART_Receive_IT(&huart2, &Rx2Data, sizeof(Rx2Data));
+	}
+
+	else if(huart->Instance == UART4)
+	{
+		CommPutRxChar(&RingBuf_EziStep, Rx4Data);
+		HAL_UART_Receive_IT(&huart4, &Rx4Data, sizeof(Rx4Data));
+	}
+
 }
 /* USER CODE END 0 */
 
@@ -73,7 +85,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint8_t data;
+	uint8_t data_Modbus;
+	uint8_t data_EziStep;
 
 	//address, func, .....  hard coding for test
 	uint8_t buf[] = { 0x01, 0x03, 0x4, 0x00, 0x03, 0x00, 0x04, 0xFF, 0xFF };
@@ -102,8 +115,13 @@ int main(void)
   MX_UART4_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  CommInit(&CommBuf);
+  CommInit(&RingBuf_Modbus);
+  CommInit(&RingBuf_EziStep);
+
   ModbusInit(&Modbus, 0x01);
+  EziStepInit(&EziStep,0x01);
+
+  HAL_UART_Receive_IT(&huart2, &Rx2Data, sizeof(Rx2Data));
   HAL_UART_Receive_IT(&huart4, &Rx4Data, sizeof(Rx4Data));
   /* USER CODE END 2 */
 
@@ -111,12 +129,21 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if ( CommIsEmpty(&CommBuf) == FALSE )
+	  if ( CommIsEmpty(&RingBuf_Modbus) == FALSE )
 	  {
-		  data = CommGetRxChar(&CommBuf);
+		  data_Modbus = CommGetRxChar(&RingBuf_Modbus);
 		  //HAL_UART_Transmit(&huart4, &data, sizeof(data), 0xFFFFFFFF);
-		  ModbusProcessData(&Modbus, data);
+		  ModbusProcessData(&Modbus, data_Modbus);
 	  }
+
+	  if ( CommIsEmpty(&RingBuf_EziStep) == FALSE )
+	  {
+		  data_EziStep = CommGetRxChar(&RingBuf_EziStep);
+		  //HAL_UART_Transmit(&huart4, &data, sizeof(data), 0xFFFFFFFF);
+		  EziStepProcessData(&EziStep, data_EziStep);
+	  }
+
+
 
 	  if( Modbus.done == TRUE )
 	  {
@@ -125,7 +152,7 @@ int main(void)
 		  crc16 = ModbusCrc16 (buf, 7);
 		  buf[7] = (uint8_t)crc16;
 		  buf[8] = (uint8_t)(crc16 >> 8);
-		  HAL_UART_Transmit(&huart4, buf, sizeof(buf), 0xFFFFFFFF);
+		  HAL_UART_Transmit(&huart2, buf, sizeof(buf), 0xFFFFFFFF);
 //		  switch( Modbus.function ){
 //		  case 0:
 //		  case 1:

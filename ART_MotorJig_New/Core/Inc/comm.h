@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#define COMM_RX_BUF_SIZE		128
+#define COMM_RX_BUF_SIZE		256
 
 typedef struct {
 	uint16_t RingBufRxCtr;
@@ -12,7 +12,8 @@ typedef struct {
 	uint8_t  RingBufRx[COMM_RX_BUF_SIZE];
 } COMM_RING_BUF;
 
-extern COMM_RING_BUF CommBuf;
+extern COMM_RING_BUF RingBuf_Modbus;
+extern COMM_RING_BUF RingBuf_EziStep;
 
 void CommInit(COMM_RING_BUF *pbuf);
 void CommPutRxChar(COMM_RING_BUF *pbuf, uint8_t data);
