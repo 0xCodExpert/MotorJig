@@ -23,20 +23,22 @@ typedef struct {
 } EZISTEP_DATA;
 
 typedef struct {
+	uint8_t cmd;
+	uint8_t cnt;
+}EZISTEP_FRAME;
+
+typedef struct {
 	EZISTEP_STATE state;
 	uint16_t header;
 	uint8_t slaveID;
-	uint8_t frameType;
+	EZISTEP_FRAME frameType;
 	EZISTEP_DATA data;
 	uint16_t crc16;
 	uint16_t tail;
 	bool done;
 } EZISTEP;
 
-typedef struct {
-	uint8_t frameType;
-	uint8_t index;
-}EZISTEP_FRAMECNT;
+
 
 extern EZISTEP EziStep;
 

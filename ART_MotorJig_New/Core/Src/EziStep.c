@@ -49,7 +49,7 @@ const uint16_t TABLE_EZISTEP_CRC16[] =
 	0x8201, 0x42C0, 0x4380, 0x8341, 0x4100, 0x81C1, 0x8081, 0x4040
 };
 
-const EZISTEP_FRAMECNT TABLE_EZISTEP_FRAMETYPE[] =
+const EZISTEP_FRAME TABLE_EZISTEP_FRAMETYPE[] =
 {
 	{0x01, 0},
 	{0x11, 1},
@@ -75,10 +75,11 @@ uint16_t EziStepCalCRC16(uint8_t* pDataBuffer, uint32_t usDataLen)
 void EziStepProcessData(EZISTEP *pEziStep, uint8_t data)
 {
 	uint16_t crc16;
-	EZISTEP_FRAMECNT *cnt;
-	uint8_t DataCnt;
-	 switch( pEziStep->state)
-	 {
+	static uint8_t dataCnt;
+	const EZISTEP_FRAME *pFrame;
+
+	switch( pEziStep->state)
+	{
 	 	 case EZISTEP_STATE_HEADER_HIGH:
 	 		if( ((pEziStep->header >> 8) & 0xFF) == data )
 	 		{
@@ -100,29 +101,32 @@ void EziStepProcessData(EZISTEP *pEziStep, uint8_t data)
 	 		}
 			break;
 	 	 case EZISTEP_STATE_FRAMETYPE:
-	 		pEziStep->frameType = data;
-	 		for(cnt = TABLE_EZISTEP_FRAMETYPE; cnt->frameType != 0x99 ; cnt++)
+	 		pEziStep->frameType.cmd = data;
+	 		for(pFrame = TABLE_EZISTEP_FRAMETYPE; pFrame->cmd != 0x99 ; pFrame++)
 	 		{
-	 			if(pEziStep->frameType == cnt->frameType)
+	 			if(pEziStep->frameType.cmd == pFrame->cmd)
 	 			{
-	 				DataCnt = cnt->index;
+	 				pEziStep->frameType.cnt = pFrame->cnt;
+	 				dataCnt = pEziStep->frameType.cnt;
 
 	 				pEziStep->data.buf[pEziStep->data.index++] = data;
-	 		 		pEziStep->state = EZISTEP_STATE_DATA;
+
+	 		 		if( pEziStep->frameType.cnt == 0 )
+	 		 		{
+	 		 			pEziStep->state = EZISTEP_STATE_CRC16_LOW;
+	 		 		}
+	 		 		else
+	 		 		{
+	 		 			pEziStep->state = EZISTEP_STATE_DATA;
+	 		 		}
 	 				break;
 	 			}
 	 		}
-
-	 		if( DataCnt == 0 )
-	 		{
-	 			pEziStep->state = EZISTEP_STATE_CRC16_LOW;
-	 		}
-
 			break;
 	 	 case EZISTEP_STATE_DATA:
 	 		pEziStep->data.buf[pEziStep->data.index++] = data;
-	 		DataCnt--;
-	 		if(DataCnt == 0)
+	 		dataCnt--;
+	 		if(dataCnt == 0)
 	 		{
 	 			pEziStep->state = EZISTEP_STATE_CRC16_LOW;
 	 		}
@@ -142,7 +146,6 @@ void EziStepProcessData(EZISTEP *pEziStep, uint8_t data)
 	 		}
 	 		else
 	 		{
-	 			pEziStep->state = EZISTEP_STATE_HEADER_HIGH;
 	 			 //ERROR
 	 		}
 			break;
