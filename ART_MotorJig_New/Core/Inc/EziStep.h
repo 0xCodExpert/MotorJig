@@ -38,8 +38,6 @@ typedef struct {
 	bool done;
 } EZISTEP;
 
-
-
 extern EZISTEP EziStep;
 
 void EziStepInit(EZISTEP *pEziStep, uint8_t slaveID);

@@ -44,7 +44,7 @@
 void Uart_SendByte(char data)
 {
 //	taskENTER_CRITICAL();
-	while((USART2->ISR & UART_FLAG_TXE) == 0); //Wait for empty transmit buffer?
+	while((USART1->ISR & UART_FLAG_TXE) == 0); //Wait for empty transmit buffer?
 	USART1->TDR = data;
 //	taskEXIT_CRITICAL();
 }
@@ -58,7 +58,7 @@ void Uart_SendByte(char data)
 ***************************************************************************************************/
 void Uart_RecvByte(char data)
 {
-	while((USART2->ISR & UART_FLAG_TXE) == 0);
+	while((USART1->ISR & UART_FLAG_TXE) == 0);
 	USART2->TDR = data;
 }
 
@@ -121,6 +121,6 @@ int __io_putchar(int ch)
 int fputc(int ch, FILE *f)
 #endif /* __GNUC__ */
 {
-  HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, 0xFFFF);
+  HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
   return ch;
 }

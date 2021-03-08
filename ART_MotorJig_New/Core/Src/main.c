@@ -26,6 +26,7 @@
 #include "comm.h"
 #include "modbus.h"
 #include "EziStep.h"
+#include "Vl53l1x.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,7 +45,10 @@
 
 /* Private variables ---------------------------------------------------------*/
 
+I2C_HandleTypeDef hi2c4;
+
 UART_HandleTypeDef huart4;
+UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -56,6 +60,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_UART4_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_I2C4_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -80,6 +86,17 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	}
 
 }
+
+volatile int IntCount;
+#define isInterrupt 1 /* If isInterrupt = 1 then device working in interrupt mode, else device working in polling mode */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+		if (GPIO_Pin == GPIO_PIN_14)
+		{
+			IntCount++;
+
+		}
+}
 /* USER CODE END 0 */
 
 /**
@@ -94,7 +111,10 @@ int main(void)
 
 	//address, func, .....  hard coding for test
 	uint8_t buf[] = { 0x01, 0x03, 0x4, 0x00, 0x03, 0x00, 0x04, 0xFF, 0xFF };
-	uint16_t crc16;
+	uint8_t buf2[] = { 0xaa, 0xcc, 0x01, 0x01, 0x00, 0x14, 0x00 ,0x00, 0xaa, 0xee};
+
+	uint16_t crc16_Modbus;
+	uint16_t crc16_EziStep;
 
   /* USER CODE END 1 */
 
@@ -118,12 +138,15 @@ int main(void)
   MX_GPIO_Init();
   MX_UART4_Init();
   MX_USART2_UART_Init();
+  MX_I2C4_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   CommInit(&RingBuf_Modbus);
   CommInit(&RingBuf_EziStep);
 
   ModbusInit(&Modbus, 0x01);
   EziStepInit(&EziStep,0x01);
+  VL53L1XInit();
 
   HAL_UART_Receive_IT(&huart2, &Rx2Data, sizeof(Rx2Data));
   HAL_UART_Receive_IT(&huart4, &Rx4Data, sizeof(Rx4Data));
@@ -133,6 +156,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  VL53L1XProcessData();
+
 	  if ( CommIsEmpty(&RingBuf_Modbus) == FALSE )
 	  {
 		  data_Modbus = CommGetRxChar(&RingBuf_Modbus);
@@ -147,15 +172,13 @@ int main(void)
 		  EziStepProcessData(&EziStep, data_EziStep);
 	  }
 
-
-
 	  if( Modbus.done == TRUE )
 	  {
 		  Modbus.done = FALSE;
 
-		  crc16 = ModbusCrc16 (buf, 7);
-		  buf[7] = (uint8_t)crc16;
-		  buf[8] = (uint8_t)(crc16 >> 8);
+		  crc16_Modbus = ModbusCrc16 (buf, 7);
+		  buf[7] = (uint8_t)crc16_Modbus;
+		  buf[8] = (uint8_t)(crc16_Modbus >> 8);
 		  HAL_UART_Transmit(&huart2, buf, sizeof(buf), 0xFFFFFFFF);
 //		  switch( Modbus.function ){
 //		  case 0:
@@ -163,6 +186,23 @@ int main(void)
 //		  case 2:
 //		  }
 	  }
+
+	  if( EziStep.done == TRUE )
+	  {
+		  EziStep.done = FALSE;
+
+		  crc16_EziStep = EziStepCalCRC16(&buf2[2], 4);
+		  buf2[6]  = (uint8_t)crc16_EziStep;
+		  buf2[7] = (uint8_t)(crc16_EziStep >> 8);
+		  HAL_UART_Transmit(&huart4, buf2, sizeof(buf2), 0xFFFFFFFF);
+//		  switch( Modbus.function ){
+//		  case 0:
+//		  case 1:
+//		  case 2:
+//		  }
+	  }
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -224,12 +264,61 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_UART4;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART2|RCC_PERIPHCLK_UART4
+                              |RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C4;
   PeriphClkInitStruct.Usart234578ClockSelection = RCC_USART234578CLKSOURCE_D2PCLK1;
+  PeriphClkInitStruct.Usart16ClockSelection = RCC_USART16CLKSOURCE_D2PCLK2;
+  PeriphClkInitStruct.I2c4ClockSelection = RCC_I2C4CLKSOURCE_D3PCLK1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief I2C4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C4_Init(void)
+{
+
+  /* USER CODE BEGIN I2C4_Init 0 */
+
+  /* USER CODE END I2C4_Init 0 */
+
+  /* USER CODE BEGIN I2C4_Init 1 */
+
+  /* USER CODE END I2C4_Init 1 */
+  hi2c4.Instance = I2C4;
+  hi2c4.Init.Timing = 0x10909CEC;
+  hi2c4.Init.OwnAddress1 = 0;
+  hi2c4.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c4.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c4.Init.OwnAddress2 = 0;
+  hi2c4.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c4.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c4.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Analogue filter
+  */
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c4, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Digital filter
+  */
+  if (HAL_I2CEx_ConfigDigitalFilter(&hi2c4, 0) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C4_Init 2 */
+
+  /* USER CODE END I2C4_Init 2 */
+
 }
 
 /**
@@ -277,6 +366,54 @@ static void MX_UART4_Init(void)
   /* USER CODE BEGIN UART4_Init 2 */
 
   /* USER CODE END UART4_Init 2 */
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart1.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart1, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart1, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
@@ -341,6 +478,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
@@ -351,6 +490,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PD14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_14;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
 }
 

@@ -122,6 +122,11 @@ void EziStepProcessData(EZISTEP *pEziStep, uint8_t data)
 	 				break;
 	 			}
 	 		}
+
+	 		if ( pFrame->cmd == 0x99 )
+	 		{
+	 			//error
+	 		}
 			break;
 	 	 case EZISTEP_STATE_DATA:
 	 		pEziStep->data.buf[pEziStep->data.index++] = data;

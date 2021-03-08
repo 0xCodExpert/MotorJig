@@ -59,8 +59,10 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 /* USER CODE BEGIN Private defines */
+extern UART_HandleTypeDef huart1;
 extern UART_HandleTypeDef huart4;
 extern UART_HandleTypeDef huart2;
+extern I2C_HandleTypeDef hi2c4;
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
