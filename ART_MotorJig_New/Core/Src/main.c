@@ -27,6 +27,7 @@
 #include "modbus.h"
 #include "EziStep.h"
 #include "Vl53l1x.h"
+#include "tmr.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -146,7 +147,7 @@ int main(void)
 
   ModbusInit(&Modbus, 0x01);
   EziStepInit(&EziStep,0x01);
-  VL53L1XInit();
+  //VL53L1XInit();
 
   HAL_UART_Receive_IT(&huart2, &Rx2Data, sizeof(Rx2Data));
   HAL_UART_Receive_IT(&huart4, &Rx4Data, sizeof(Rx4Data));
@@ -156,7 +157,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  VL53L1XProcessData();
+	  //VL53L1XProcessData();
 
 	  if ( CommIsEmpty(&RingBuf_Modbus) == FALSE )
 	  {

@@ -1,6 +1,7 @@
 #include "main.h"
 #include "common.h"
 #include "EziStep.h"
+#include <string.h>
 
 EZISTEP EziStep;
 
@@ -51,10 +52,13 @@ const uint16_t TABLE_EZISTEP_CRC16[] =
 
 const EZISTEP_FRAME TABLE_EZISTEP_FRAMETYPE[] =
 {
-	{0x01, 0},
-	{0x11, 1},
-	{0x12, 5},
-	{0x99, 0},
+	{0x01,	0,	248},		//FAS_GetSlaveInfo
+	{0x11,	1,	5},			//FAS_GetRomParameter
+	{0x12,	5,	1},			//FAS_SetParameter
+	{0x34,	8,	1},			//FAS_MoveSingleAxisAbsPos
+	{0x31,	0,	1},			//FAS_MoveStop
+	{0x2A,	1,	1},			//FAS_StepEnable
+	{0x99,  0,  0},			//Error 
 };
 
 uint16_t EziStepCalCRC16(uint8_t* pDataBuffer, uint32_t usDataLen)
@@ -80,94 +84,117 @@ void EziStepProcessData(EZISTEP *pEziStep, uint8_t data)
 
 	switch( pEziStep->state)
 	{
-	 	 case EZISTEP_STATE_HEADER_HIGH:
-	 		if( ((pEziStep->header >> 8) & 0xFF) == data )
-	 		{
-	 			pEziStep->state = EZISTEP_STATE_HEADER_LOW;
-	 		}
-			break;
-	 	 case EZISTEP_STATE_HEADER_LOW:
-	 		if( (pEziStep->header & 0xFF) == data )
-	 		{
-	 			pEziStep->data.index = 0;
-	 			pEziStep->state = EZISTEP_STATE_SLAVEID;
-	 		}
-			break;
-	 	 case EZISTEP_STATE_SLAVEID:
-	 		if( pEziStep->slaveID == data )
-	 		{
-	 			pEziStep->data.buf[pEziStep->data.index++] = data;
-	 			pEziStep->state = EZISTEP_STATE_FRAMETYPE;
-	 		}
-			break;
-	 	 case EZISTEP_STATE_FRAMETYPE:
-	 		pEziStep->frameType.cmd = data;
-	 		for(pFrame = TABLE_EZISTEP_FRAMETYPE; pFrame->cmd != 0x99 ; pFrame++)
-	 		{
-	 			if(pEziStep->frameType.cmd == pFrame->cmd)
-	 			{
-	 				pEziStep->frameType.cnt = pFrame->cnt;
-	 				dataCnt = pEziStep->frameType.cnt;
+	case EZISTEP_STATE_HEADER_HIGH:
+		if( ((pEziStep->header >> 8) & 0xFF) == data )
+		{
+			pEziStep->state = EZISTEP_STATE_HEADER_LOW;
+		}
+		break;
+	case EZISTEP_STATE_HEADER_LOW:
+		if( (pEziStep->header & 0xFF) == data )
+		{
+			pEziStep->data.index = 0;
+			pEziStep->state = EZISTEP_STATE_SLAVEID;
+		}
+		break;
+	case EZISTEP_STATE_SLAVEID:
+		if( pEziStep->slaveID == data )
+		{
+			pEziStep->data.buf[pEziStep->data.index++] = data;
+			pEziStep->state = EZISTEP_STATE_FRAMETYPE;
+		}
+		break;
+	case EZISTEP_STATE_FRAMETYPE:
+		pEziStep->frameType.cmd = data;
+		for(pFrame = TABLE_EZISTEP_FRAMETYPE; pFrame->cmd != 0x99 ; pFrame++)
+		{
+			if(pEziStep->frameType.cmd == pFrame->cmd)
+			{
+				pEziStep->frameType.sendCnt = pFrame->sendCnt;
+				dataCnt = pEziStep->frameType.sendCnt;
 
-	 				pEziStep->data.buf[pEziStep->data.index++] = data;
+				pEziStep->data.buf[pEziStep->data.index++] = data;
 
-	 		 		if( pEziStep->frameType.cnt == 0 )
-	 		 		{
-	 		 			pEziStep->state = EZISTEP_STATE_CRC16_LOW;
-	 		 		}
-	 		 		else
-	 		 		{
-	 		 			pEziStep->state = EZISTEP_STATE_DATA;
-	 		 		}
-	 				break;
-	 			}
-	 		}
+				if( pEziStep->frameType.sendCnt == 0 )
+				{
+					pEziStep->state = EZISTEP_STATE_CRC16_LOW;
+				}
+				else
+				{
+					pEziStep->state = EZISTEP_STATE_DATA;
+				}
+				break;
+			}
+		}
 
-	 		if ( pFrame->cmd == 0x99 )
-	 		{
-	 			//error
-	 		}
-			break;
-	 	 case EZISTEP_STATE_DATA:
-	 		pEziStep->data.buf[pEziStep->data.index++] = data;
-	 		dataCnt--;
-	 		if(dataCnt == 0)
-	 		{
-	 			pEziStep->state = EZISTEP_STATE_CRC16_LOW;
-	 		}
-			break;
-	 	 case EZISTEP_STATE_CRC16_LOW:
-	 		pEziStep->crc16 = (uint16_t)data & 0x00FF;
-	 		pEziStep->state = EZISTEP_STATE_CRC16_HIGH;
-	 		break;
-	 	 case EZISTEP_STATE_CRC16_HIGH:
-	 		pEziStep->crc16 |= ((uint16_t)data << 8) & 0xFF00;
+		if ( pFrame->cmd == 0x99 )
+		{
+			//error
+		}
+		break;
+	case EZISTEP_STATE_DATA:
+		pEziStep->data.buf[pEziStep->data.index++] = data;
+		dataCnt--;
+		if(dataCnt == 0)
+		{
+			pEziStep->state = EZISTEP_STATE_CRC16_LOW;
+		}
+		break;
+	case EZISTEP_STATE_CRC16_LOW:
+		pEziStep->crc16 = (uint16_t)data & 0x00FF;
+		pEziStep->state = EZISTEP_STATE_CRC16_HIGH;
+		break;
+	case EZISTEP_STATE_CRC16_HIGH:
+		pEziStep->crc16 |= ((uint16_t)data << 8) & 0xFF00;
 
-	 		crc16 = EziStepCalCRC16(pEziStep->data.buf, pEziStep->data.index);
-	 		if( crc16 == pEziStep->crc16 )
-	 		{
-	 			 pEziStep->state = EZISTEP_STATE_TAIL_HIGH;
-	 			 //print
-	 		}
-	 		else
-	 		{
-	 			 //ERROR
-	 		}
-			break;
-	 	 case EZISTEP_STATE_TAIL_HIGH:
-	 		if( ((pEziStep->tail >> 8) & 0xFF) == data )
-	 		{
-	 			pEziStep->state = EZISTEP_STATE_TAIL_LOW;
-	 		}
-			break;
-	 	 case EZISTEP_STATE_TAIL_LOW:
-	 		if( (pEziStep->tail & 0xFF) == data )
-	 		{
-	 			pEziStep->state = EZISTEP_STATE_HEADER_HIGH;
-	 			pEziStep->done = TRUE;
+		crc16 = EziStepCalCRC16(pEziStep->data.buf, pEziStep->data.index);
+		if( crc16 == pEziStep->crc16 )
+		{
+				pEziStep->state = EZISTEP_STATE_TAIL_HIGH;
+				//print
+		}
+		else
+		{
+				//ERROR
+		}
+		break;
+	case EZISTEP_STATE_TAIL_HIGH:
+		if( ((pEziStep->tail >> 8) & 0xFF) == data )
+		{
+			pEziStep->state = EZISTEP_STATE_TAIL_LOW;
+		}
+		break;
+	case EZISTEP_STATE_TAIL_LOW:
+		if( (pEziStep->tail & 0xFF) == data )
+		{
+			pEziStep->state = EZISTEP_STATE_HEADER_HIGH;
+			pEziStep->done = TRUE;
 
-	 			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	 		}
-			break;
-	 }
+			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+		}
+		break;
+	}
+}
+
+void EziStepSendData(EZISTEP *pEziStep, uint8_t slaveID)
+{
+	uint8_t sendBuf[EZISTEP_DATA_BUF_SIZE];
+	uint8_t index = 0;	
+
+	sendBuf[index++] = (uint8_t)(pEziStep->header >> 8) & 0xFF;
+	sendBuf[index++] = (uint8_t) pEziStep->header & 0xFF;
+
+	pEziStep->data.buf[0] = slaveID;  
+
+	memcpy(&sendBuf[index], pEziStep->data.buf, pEziStep->data.index);
+
+	index = index + pEziStep->data.index;
+
+	sendBuf[index++] = (uint8_t) pEziStep->crc16 & 0xFF;
+	sendBuf[index++] = (uint8_t) (pEziStep->crc16 >> 8) & 0xFF;
+
+	sendBuf[index++] = (uint8_t) (pEziStep-> tail >> 8) & 0xFF;
+	sendBuf[index++] = (uint8_t) pEziStep->tail & 0xFF;
+
+	HAL_UART_Transmit(&huart4, sendBuf, index, 0xffffffff);
 }

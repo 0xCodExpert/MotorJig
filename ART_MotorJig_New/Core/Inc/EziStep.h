@@ -24,7 +24,8 @@ typedef struct {
 
 typedef struct {
 	uint8_t cmd;
-	uint8_t cnt;
+	uint8_t sendCnt;
+	uint8_t recvCnt;
 }EZISTEP_FRAME;
 
 typedef struct {
@@ -43,5 +44,6 @@ extern EZISTEP EziStep;
 void EziStepInit(EZISTEP *pEziStep, uint8_t slaveID);
 unsigned short EziStepCalCRC16(unsigned char* pDataBuffer, unsigned long usDataLen);
 void EziStepProcessData(EZISTEP *pEziStep, uint8_t data);
+void EziStepSendData(EZISTEP *pEziStep);
 
 #endif
