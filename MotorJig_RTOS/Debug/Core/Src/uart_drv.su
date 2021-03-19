@@ -1,0 +1,9 @@
+uart_drv.c:48:6:Uart_SendByte	16	static
+uart_drv.c:63:6:Uart_RecvByte	16	static
+uart_drv.c:75:6:Uart_SendString	16	static
+uart_drv.c:91:6:Uart_Printf	80	static
+uart_drv.c:123:5:__io_putchar	16	static
+uart_drv.c:138:6:Uart_VarInit	4	static
+uart_drv.c:151:6:Uart_Hit	16	static
+uart_drv.c:164:6:Uart_BufIn	16	static
+uart_drv.c:182:9:Uart_BufOut	16	static

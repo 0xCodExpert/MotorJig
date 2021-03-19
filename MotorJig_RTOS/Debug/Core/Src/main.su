@@ -1,0 +1,7 @@
+main.c:85:5:main	8	static
+main.c:164:6:SystemClock_Config	312	static
+main.c:229:6:Main_InitModules	8	static
+main.c:244:6:Main_StartTasks	16	static
+main.c:262:6:Main_PeriodicTask	16	static
+main.c:287:6:HAL_TIM_PeriodElapsedCallback	16	static
+main.c:307:6:Error_Handler	4	static

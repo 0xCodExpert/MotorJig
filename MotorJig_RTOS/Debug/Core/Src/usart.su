@@ -1,0 +1,15 @@
+usart.c:59:6:MX_USART1_UART_Init	8	static
+usart.c:92:6:HAL_UART_MspInit	48	static
+usart.c:125:6:HAL_UART_MspDeInit	16	static
+usart.c:157:6:HAL_UART_RxCpltCallback	16	static
+usart.c:171:6:Uart1_Irq	16	static,ignoring_inline_asm
+usart.c:243:11:Uart_Parse	24	static
+usart.c:400:6:Uart_InitModules	8	static
+usart.c:415:6:Uart_InitTasks	16	static
+usart.c:431:6:Uart_RecvTask	24	static
+usart.c:501:6:Uart_ResetState	8	static
+usart.c:513:6:Uart_ACK	16	static
+usart.c:529:6:Uart_NAK	16	static
+usart.c:545:6:Uart_DONE	16	static
+usart.c:561:6:Uart_NODONE	16	static
+usart.c:579:7:Uart_MakeCheckSum	24	static

@@ -1,0 +1,6 @@
+ring_buffer.c:51:8:Ring_Initialize	24	static
+ring_buffer.c:70:8:Ring_GetCount	24	static
+ring_buffer.c:92:6:Ring_IsEmpty	16	static
+ring_buffer.c:105:6:Ring_IsFull	16	static
+ring_buffer.c:119:6:Ring_Put	16	static
+ring_buffer.c:141:11:Ring_Get	24	static
